@@ -9,7 +9,6 @@ namespace PurrNet.Packing
         [UsedByIL]
         internal static void WriteOwnershipChange(this BitPacker packer, OwnershipChange value)
         {
-            Debug.Log($"Packer hit at {Time.time}");
             Packer<SceneID>.Write(packer, value.sceneId);
             Packer<bool>.Write(packer, value.isAdding);
             Packer<PlayerID>.Write(packer, value.player);
