@@ -1,6 +1,5 @@
 using PurrNet.Modules;
 using PurrNet.Pooling;
-using UnityEngine;
 
 namespace PurrNet.Packing
 {
@@ -14,7 +13,7 @@ namespace PurrNet.Packing
             Packer<PlayerID>.Write(packer, value.player);
             Packer<bool>.Write(packer, value.isSpawner);
 
-            WriteIdentitiesRLE(packer, value.identities);
+            WriteIdentities(packer, value.identities);
         }
 
         [UsedByIL]
@@ -25,10 +24,10 @@ namespace PurrNet.Packing
             Packer<PlayerID>.Read(packer, ref value.player);
             Packer<bool>.Read(packer, ref value.isSpawner);
 
-            ReadIdentitiesRLE(packer, ref value.identities);
+            ReadIdentities(packer, ref value.identities);
         }
 
-        private static void WriteIdentitiesRLE(BitPacker packer, DisposableList<NetworkID> identities)
+        private static void WriteIdentities(BitPacker packer, DisposableList<NetworkID> identities)
         {
             if (identities.isDisposed || identities.rawList == null)
             {
@@ -41,35 +40,86 @@ namespace PurrNet.Packing
             int count = identities.Count;
             Packer<Size>.Write(packer, (uint)count);
 
+			bool useRLE = ShouldUseRLE(identities);
+			packer.WriteBit(useRLE);
+
+			if (!useRLE)
+            {
+                for (int id = 0; id < count; id++)
+                {
+                    Packer<NetworkID>.Write(packer, identities[id]);
+                }
+
+                return;
+            }
+
             int i = 0;
+
             while (i < count)
             {
-                var runStart = identities[i];
+                NetworkID start = identities[i];
                 int runLength = 1;
 
                 while (i + runLength < count)
                 {
-                    var prev = identities[i + runLength - 1];
-                    var next = identities[i + runLength];
+                    NetworkID previous = identities[i + runLength - 1];
+                    NetworkID next = identities[i + runLength];
 
-                    bool sameScope = prev.scope.Equals(next.scope) && prev.scope.isBot == next.scope.isBot;
-                    bool consecutive = next.id.value == prev.id.value + 1;
-
-                    if (!sameScope || !consecutive)
+                    if (!previous.scope.Equals(next.scope) || previous.scope.isBot != next.scope.isBot || next.id.value != previous.id.value + 1)
+                    {
                         break;
+                    }
 
                     runLength++;
                 }
 
-                Packer<PlayerID>.Write(packer, runStart.scope);
-                Packer<PackedULong>.Write(packer, runStart.id);
+                Packer<PlayerID>.Write(packer, start.scope);
+                Packer<PackedULong>.Write(packer, start.id);
                 Packer<Size>.Write(packer, (uint)runLength);
 
                 i += runLength;
             }
         }
 
-        static void ReadIdentitiesRLE(BitPacker packer, ref DisposableList<NetworkID> identities)
+        private static bool ShouldUseRLE(DisposableList<NetworkID> identities)
+        {
+            int count = identities.Count;
+
+            if (count < 2)
+            {
+                return false;
+            }
+
+            int runs = 0;
+            int i = 0;
+
+            while (i < count)
+            {
+                runs++;
+
+                NetworkID previous = identities[i];
+                i++;
+
+                while (i < count)
+                {
+                    NetworkID next = identities[i];
+
+                    if (!previous.scope.Equals(next.scope) || previous.scope.isBot != next.scope.isBot || next.id.value != previous.id.value + 1)
+                    {
+                        break;
+                    }
+
+                    previous = next;
+                    i++;
+                }
+            }
+
+            // RLE stores scope + stating ID + length per run
+            // uncompressed size is just count
+            return runs * 3 < count;
+        }
+
+        static void ReadIdentities(BitPacker packer, ref DisposableList<NetworkID> identities)
         {
             identities.Dispose();
 
@@ -84,7 +134,23 @@ namespace PurrNet.Packing
 
             identities = DisposableList<NetworkID>.Create(totalCount);
 
+            bool useRLE = default;
+            packer.Read(ref useRLE);
+
+            if (!useRLE)
+            {
+                for (int i = 0; i < totalCount; i++)
+                {
+                    NetworkID identity = default;
+                    Packer<NetworkID>.Read(packer, ref identity);
+                    identities.Add(identity);
+                }
+
+                return;
+            }
+
             int read = 0;
+
             while (read < totalCount)
             {
                 PlayerID scope = default;
@@ -97,7 +163,9 @@ namespace PurrNet.Packing
                 Packer<Size>.Read(packer, ref runLength);
 
                 for (int j = 0; j < runLength; j++)
+                {
                     identities.Add(new NetworkID(startId.value + (ulong)j, scope));
+                }
 
                 read += runLength;
             }
