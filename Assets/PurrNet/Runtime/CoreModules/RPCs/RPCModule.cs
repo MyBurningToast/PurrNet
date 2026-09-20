@@ -947,7 +947,7 @@ namespace PurrNet.Modules
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = data.header.senderId,
+                sender = player,
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };
@@ -981,7 +981,7 @@ namespace PurrNet.Modules
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = packet.header.senderId,
+                sender = player,
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };
@@ -1102,10 +1102,15 @@ namespace PurrNet.Modules
         private static bool _bypassEnabled = true;
         void ReceiveRPC(PlayerID player, RPCPacket packet, bool asServer)
         {
+            if (packet.header.senderId != player && !player.isServer)
+            {
+                PurrLogger.LogWarning($"[RPCModule] Sender mismatch: packet claimed {packet.header.senderId}, actual connection is {player}. Possible modified client.");
+            }
+
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = packet.header.senderId, // this trusts whatever the client sent :/
+                sender = player,
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };
