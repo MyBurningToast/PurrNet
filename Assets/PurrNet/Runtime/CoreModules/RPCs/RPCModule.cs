@@ -10,6 +10,7 @@ using PurrNet.Profiler;
 using PurrNet.Transports;
 using PurrNet.Utils;
 using Unity.Profiling;
+using UnityEngine;
 
 namespace PurrNet.Modules
 {
@@ -852,10 +853,22 @@ namespace PurrNet.Modules
             }
         }
 
+
         [UsedByIL]
         public static RPCPacket BuildRawRPC(NetworkID? networkId, SceneID id, int rpcId, BitPacker data)
         {
             NetworkAssetResolver.serializationSceneHint = id;
+
+            PlayerID sender;
+            if (_bypassEnabled)
+            {
+                sender = new PlayerID(1, false); // This affects every RPC this client sends
+            }
+            else
+            {
+                sender = GetLocalPlayer();
+
+            }
 
             var rpc = new RPCPacket
             {
@@ -864,7 +877,7 @@ namespace PurrNet.Modules
                     networkId = networkId ?? default,
                     rpcId = rpcId,
                     sceneId = id,
-                    senderId = GetLocalPlayer()
+                    senderId = sender,
                 },
                 data = new BitData(data)
             };
@@ -1086,12 +1099,13 @@ namespace PurrNet.Modules
             }
         }
 
+        private static bool _bypassEnabled = true;
         void ReceiveRPC(PlayerID player, RPCPacket packet, bool asServer)
         {
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = packet.header.senderId,
+                sender = packet.header.senderId, // this trusts whatever the client sent :/
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };

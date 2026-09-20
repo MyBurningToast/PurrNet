@@ -653,16 +653,20 @@ namespace PurrNet
             var rules = networkManager.networkRules;
             bool shouldIgnoreOwnership = rules && rules.ShouldIgnoreRequireOwner();
 
-            if (!shouldIgnoreOwnership && signature.requireOwnership && !isOwner)
-            {
-                if (signature is
-                    { runLocally: false, channel: Channel.ReliableOrdered or Channel.ReliableUnordered })
-                    PurrLogger.LogError(
-                        $"Trying to send RPC '{signature.rpcName}' from '{GetType().Name}' without ownership.",
-                        this);
-                _validatingRPCMarker.End();
-                return false;
-            }
+
+   //         if (!RpcSpoofTest.CheatEnabled)// bypass the client side pre send check
+			//{
+			//	if (!shouldIgnoreOwnership && signature.requireOwnership && !isOwner)
+			//	{
+			//		if (signature is
+			//			{ runLocally: false, channel: Channel.ReliableOrdered or Channel.ReliableUnordered })
+			//			PurrLogger.LogError(
+			//				$"Trying to send RPC '{signature.rpcName}' from '{GetType().Name}' without ownership.",
+			//				this);
+			//		_validatingRPCMarker.End();
+			//		return false;
+			//	}
+			//}
 
             bool shouldIgnore = rules && rules.ShouldIgnoreRequireServer();
 
@@ -710,7 +714,7 @@ namespace PurrNet
                 if (!networkManager.TryGetRpcModule(networkManager.isServer, out var module))
                     return false;
 
-                if (!shouldIgnoreOwnership && signature.requireOwnership && info.sender != owner)
+                if (!shouldIgnoreOwnership && signature.requireOwnership && info.sender != owner) // set on client side
                 {
                     RPCModule.TrySendRejection(networkManager, info, signature, requestId, isAwaitable, asServer, RpcError.RequireOwnership);
                     return false;
