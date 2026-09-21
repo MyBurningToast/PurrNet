@@ -934,7 +934,7 @@ namespace PurrNet.Modules
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = player,
+                sender = asServer ? player : data.header.senderId,
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };
@@ -968,7 +968,7 @@ namespace PurrNet.Modules
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = player,
+                sender = asServer ? player : packet.header.senderId,
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };
@@ -1091,7 +1091,7 @@ namespace PurrNet.Modules
             var info = new RPCInfo
             {
                 manager = _manager,
-                sender = player,
+                sender = asServer ? player : packet.header.senderId,
                 asServer = asServer,
                 receivedImmediate = _receivingImmediateLane
             };
