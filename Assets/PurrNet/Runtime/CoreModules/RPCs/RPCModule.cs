@@ -924,6 +924,9 @@ namespace PurrNet.Modules
 
         void ReceiveStaticRPC(PlayerID player, StaticRPCPacket data, bool asServer)
         {
+            if (asServer)
+                data.header.senderId = player; // prevent client forged senderId
+
             if (!Hasher.TryGetType(data.header.typeHash, out var type))
             {
                 Hasher.PrintHashError(data.header.typeHash);
@@ -965,6 +968,9 @@ namespace PurrNet.Modules
 
         void ReceiveChildRPC(PlayerID player, ChildRPCPacket packet, bool asServer)
         {
+            if (asServer)
+                packet.header.senderId = player; // prevent client forged senderId
+
             var info = new RPCInfo
             {
                 manager = _manager,
@@ -1088,6 +1094,9 @@ namespace PurrNet.Modules
 
         void ReceiveRPC(PlayerID player, RPCPacket packet, bool asServer)
         {
+            if (asServer)
+                packet.header.senderId = player; // prevent client forged senderId
+
             var info = new RPCInfo
             {
                 manager = _manager,
